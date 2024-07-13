@@ -9,14 +9,27 @@ class BookspiderSpider(scrapy.Spider):
         books = response.css("article.product_pod")
         
         for book in books:
-            yield {
-                "name": book.css("h3 a::text").get(),
-                "price": book.css(".product_price .price_color::text").get(),
-                "url": book.css("h3 a").attrib["href"]  
-            }
+            book_page_url = book.css("h3 a::attr(href)").get()
+            yield response.follow(response.urljoin(book_page_url), callback=self.parse_book_page)
         
-        next_page = response.css("li.next a::attr(href)").get()
+        # next_page = response.css("li.next a::attr(href)").get()
         
-        if next_page:
-            next_page_full_url = response.urljoin(next_page)
-            yield response.follow(next_page_full_url, callback=self.parse)
+        # if next_page:
+        #     yield response.follow(response.urljoin(next_page), callback=self.parse)
+        
+    def parse_book_page(self, response):
+        product_info_container = response.css("table tr")   
+        
+        book_info = {
+            "book_title": response.css("div.product_main h1::text").get(),
+            "genre": response.css("ul.breadcrumb li:nth-child(3) a::text").get(),
+            "universal_product_code": product_info_container[0].css("td::text").get(),
+            "product_type": product_info_container[1].css("td::text").get(),
+            "base_price": product_info_container[2].css("td::text").get(),
+            "taxed_price": product_info_container[3].css("td::text").get(),
+            "tax": product_info_container[4].css("td::text").get(),
+            "stock_count": product_info_container[5].css("td::text").get(),
+            "reviews": product_info_container[6].css("td::text").get()
+        }
+        
+        yield book_info
