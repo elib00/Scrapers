@@ -7,20 +7,21 @@
 # useful for handling different item types with a single interface
 from itemadapter import ItemAdapter
 from scrapy.exporters import CsvItemExporter
+import mysql.connector
 
 
 class BookScraperPipeline:
-    def open_spider(self, spider):
-        self.file = open('output.csv', 'wb')
-        self.exporter = CsvItemExporter(self.file, fields_to_export=[
-            'url', 'book_title', 'genre', 'universal_product_code', 'product_type',
-            'base_price', 'taxed_price', 'tax', 'stock_count', 'reviews', 'star_rating'
-        ])
-        self.exporter.start_exporting()
+    # def open_spider(self, spider):
+    #     self.file = open('output.csv', 'wb')
+    #     self.exporter = CsvItemExporter(self.file, fields_to_export=[
+    #         'url', 'book_title', 'genre', 'universal_product_code', 'product_type',
+    #         'base_price', 'taxed_price', 'tax', 'stock_count', 'reviews', 'star_rating'
+    #     ])
+    #     self.exporter.start_exporting()
     
-    def close_spider(self, spider):
-        self.exporter.finish_exporting()
-        self.file.close()
+    # def close_spider(self, spider):
+    #     self.exporter.finish_exporting()
+    #     self.file.close()
         
     def process_item(self, item, spider):
         adapter = ItemAdapter(item)
@@ -70,5 +71,57 @@ class BookScraperPipeline:
         stars = star_rating_string.split(" ")[1].lower()
         adapter["star_rating"] = ratings[stars]
         
-        self.exporter.export_item(item)
+        # self.exporter.export_item(item)
         return item
+
+
+class SaveToMySQLPipeline:
+    def __init__(self):
+        self.connection = mysql.connector.connect(
+            host = "localhost", user = "root", password = "", database = "db_books"
+        )
+        
+        self.cursor = self.connection.cursor()
+        
+        query_string = """
+            CREATE TABLE IF NOT EXISTS tbl_info (
+                id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+                url VARCHAR(255),
+                book_title VARCHAR(255),
+                genre VARCHAR(255),
+                universal_product_code VARCHAR(255),
+                product_type VARCHAR(255),
+                base_price DECIMAL,
+                taxed_price DECIMAL,
+                tax DECIMAL,
+                stock_count INT, 
+                reviews INT, 
+                star_rating INT   
+            ); 
+        """
+        
+        self.cursor.execute(query_string)
+        self.connection.commit()
+        
+    def process_item(self, item, spider):
+        query_string = """
+            INSERT INTO tbl_info (
+                url, book_title, genre, universal_product_code, product_type, base_price,
+                taxed_price, tax, stock_count, reviews, star_rating
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """
+        
+        self.cursor.execute(query_string, (
+            item["url"], item["book_title"], item["genre"], item["universal_product_code"], item["product_type"],
+            item["base_price"], item["taxed_price"], item["tax"], item["stock_count"], item["reviews"], item["star_rating"]
+        ))
+        
+        self.connection.commit()
+        return item
+
+    def close_spider(self, spider):
+        self.cursor.close()
+        self.connection.close()
+            
+        
+        

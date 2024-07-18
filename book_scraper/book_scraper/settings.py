@@ -64,6 +64,8 @@ ROBOTSTXT_OBEY = True
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
    "book_scraper.pipelines.BookScraperPipeline": 300,
+   "book_scraper.pipelines.SaveToMySQLPipeline": 400,
+   
 }
 
 # Enable and configure the AutoThrottle extension (disabled by default)
